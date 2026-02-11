@@ -262,18 +262,9 @@
         bounds_group.addLayer(layer_Commune_1);
         map.addLayer(layer_Commune_1);
         function pop_Projets_points_2(feature, layer) {
-            layer.on({
-                mouseout: function(e) {
-                    if (typeof layer.closePopup == 'function') {
-                        layer.closePopup();
-                    } else {
-                        layer.eachLayer(function(feature){
-                            feature.closePopup()
-                        });
-                    }
-                },
-                mouseover: highlightFeature,
-            });
+// Suppression du comportement au survol
+    layer.off('mouseover');
+    layer.off('mouseout');
             var popupContent = '<table>\
                     <tr>\
                         <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
