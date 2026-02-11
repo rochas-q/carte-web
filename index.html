@@ -256,7 +256,6 @@ layer.off('mouseout');
         function pop_Projets_points_2(feature, layer) {
 
     // Suppression du comportement au survol
-    // Popup uniquement au clic
     layer.off('mouseover');
     layer.off('mouseout');
 
@@ -289,11 +288,17 @@ layer.off('mouseout');
             <div style="display:flex; gap:10px; margin-top:10px;">
                 <div style="flex:1;">
                     <strong>Avant</strong><br>
-                    <img src="images/${imgAvant}" style="width:100%; border-radius:6px;">
+                    <img src="images/${imgAvant}" 
+                         style="width:100%; max-width:250px; border-radius:6px; margin-top:5px;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <p style="display:none; color:red; font-size:10pt;">Image non trouvée</p>
                 </div>
                 <div style="flex:1;">
                     <strong>Après</strong><br>
-                    <img src="images/${imgApres}" style="width:100%; border-radius:6px;">
+                    <img src="images/${imgApres}" 
+                         style="width:100%; max-width:250px; border-radius:6px; margin-top:5px;"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                    <p style="display:none; color:red; font-size:10pt;">Image non trouvée</p>
                 </div>
             </div>
         `;
@@ -302,20 +307,29 @@ layer.off('mouseout');
     else if (imgAvant) {
         popupContent += `
             <div style="margin-top:10px;">
-                <img src="images/${imgAvant}" style="width:100%; border-radius:6px;">
+                <strong>Photo</strong><br>
+                <img src="images/${imgAvant}" 
+                     style="width:100%; max-width:400px; border-radius:6px; margin-top:5px;"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <p style="display:none; color:red; font-size:10pt;">Image non trouvée: ${imgAvant}</p>
             </div>
         `;
     }
     else if (imgApres) {
         popupContent += `
             <div style="margin-top:10px;">
-                <img src="images/${imgApres}" style="width:100%; border-radius:6px;">
+                <strong>Photo</strong><br>
+                <img src="images/${imgApres}" 
+                     style="width:100%; max-width:400px; border-radius:6px; margin-top:5px;"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                <p style="display:none; color:red; font-size:10pt;">Image non trouvée: ${imgApres}</p>
             </div>
         `;
     }
 
     layer.bindPopup(popupContent, {
         maxWidth: 600,
+        minWidth: 300,
         autoClose: true,
         closeOnClick: true
     });
