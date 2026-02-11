@@ -255,8 +255,10 @@ layer.off('mouseout');
         map.addLayer(layer_Commune_1);
         function pop_Projets_points_2(feature, layer) {
 
-    // On supprime complètement mouseover / mouseout
-    // Le popup s'ouvrira uniquement au clic
+    // Suppression du comportement au survol
+    // Popup uniquement au clic
+    layer.off('mouseover');
+    layer.off('mouseout');
 
     var nom = feature.properties['Nom'] || '';
     var description = feature.properties['Description'] || '';
@@ -281,25 +283,43 @@ layer.off('mouseout');
         </div>
     `;
 
+    // Si les deux images existent → affichage côte à côte
     if (imgAvant && imgApres) {
         popupContent += `
-            <div class="compare-container">
-                <img src="images/${imgAvant}">
-                <img src="images/${imgApres}" class="after">
-                <input type="range" min="0" max="100" value="50" class="compare-slider">
+            <div style="display:flex; gap:10px; margin-top:10px;">
+                <div style="flex:1;">
+                    <strong>Avant</strong><br>
+                    <img src="images/${imgAvant}" style="width:100%; border-radius:6px;">
+                </div>
+                <div style="flex:1;">
+                    <strong>Après</strong><br>
+                    <img src="images/${imgApres}" style="width:100%; border-radius:6px;">
+                </div>
             </div>
         `;
-    } else if (imgAvant) {
-        popupContent += `<img src="images/${imgAvant}" style="width:100%; margin-top:10px;">`;
-    } else if (imgApres) {
-        popupContent += `<img src="images/${imgApres}" style="width:100%; margin-top:10px;">`;
+    }
+    // Si une seule image
+    else if (imgAvant) {
+        popupContent += `
+            <div style="margin-top:10px;">
+                <img src="images/${imgAvant}" style="width:100%; border-radius:6px;">
+            </div>
+        `;
+    }
+    else if (imgApres) {
+        popupContent += `
+            <div style="margin-top:10px;">
+                <img src="images/${imgApres}" style="width:100%; border-radius:6px;">
+            </div>
+        `;
     }
 
     layer.bindPopup(popupContent, {
-        maxWidth: 480,
+        maxWidth: 600,
         autoClose: true,
         closeOnClick: true
     });
+}
 
     layer.on('popupopen', function(e) {
 
