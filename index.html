@@ -159,18 +159,9 @@
         layer_OpenStreetMap_0;
         map.addLayer(layer_OpenStreetMap_0);
         function pop_Limitescommunale_1(feature, layer) {
-            layer.on({
-                mouseout: function(e) {
-                    if (typeof layer.closePopup == 'function') {
-                        layer.closePopup();
-                    } else {
-                        layer.eachLayer(function(feature){
-                            feature.closePopup()
-                        });
-                    }
-                },
-                mouseover: highlightFeature,
-            });
+   // Suppression du comportement au survol
+    layer.off('mouseover');
+    layer.off('mouseout');
             var popupContent = '<table>\
                     <tr>\
                         <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
@@ -262,18 +253,9 @@
         bounds_group.addLayer(layer_Limitescommunale_1);
         map.addLayer(layer_Limitescommunale_1);
         function pop_Axesduprogramme_2(feature, layer) {
-            layer.on({
-                mouseout: function(e) {
-                    if (typeof layer.closePopup == 'function') {
-                        layer.closePopup();
-                    } else {
-                        layer.eachLayer(function(feature){
-                            feature.closePopup()
-                        });
-                    }
-                },
-                mouseover: highlightFeature,
-            });
+   // Suppression du comportement au survol
+    layer.off('mouseover');
+    layer.off('mouseout');
             var popupContent = '<table>\
                     <tr>\
                         <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
