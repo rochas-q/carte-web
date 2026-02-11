@@ -292,16 +292,9 @@
         map.addLayer(layer_Commune_1);
 function pop_Projets_points_2(feature, layer) {
 
-    layer.on({
-        mouseover: highlightFeature,
-        mouseout: function(e) {
-            if (typeof layer.closePopup == 'function') {
-                layer.closePopup();
-            }
-        }
-    });
+    // On supprime complètement mouseover / mouseout
+    // Le popup s'ouvrira uniquement au clic
 
-    // Récupération des propriétés
     var nom = feature.properties['Nom'] || '';
     var description = feature.properties['Description'] || '';
     var quartier = feature.properties['Quartier'] || '';
@@ -313,7 +306,6 @@ function pop_Projets_points_2(feature, layer) {
     var imgAvant = feature.properties['Photo_avant'];
     var imgApres = feature.properties['Photo_apres'];
 
-    // Contenu texte du popup
     var popupContent = `
         <div style="font-family: 'Open Sans', sans-serif;">
             <h3 style="margin-bottom:5px;">${nom}</h3>
@@ -326,9 +318,7 @@ function pop_Projets_points_2(feature, layer) {
         </div>
     `;
 
-    // Ajout du slider si les deux images existent
     if (imgAvant && imgApres) {
-
         popupContent += `
             <div class="compare-container">
                 <img src="images/${imgAvant}">
@@ -336,19 +326,18 @@ function pop_Projets_points_2(feature, layer) {
                 <input type="range" min="0" max="100" value="50" class="compare-slider">
             </div>
         `;
-    }
-
-    // Si une seule image existe
-    else if (imgAvant) {
+    } else if (imgAvant) {
         popupContent += `<img src="images/${imgAvant}" style="width:100%; margin-top:10px;">`;
-    }
-    else if (imgApres) {
+    } else if (imgApres) {
         popupContent += `<img src="images/${imgApres}" style="width:100%; margin-top:10px;">`;
     }
 
-    layer.bindPopup(popupContent, { maxWidth: 480 });
+    layer.bindPopup(popupContent, {
+        maxWidth: 480,
+        autoClose: true,
+        closeOnClick: true
+    });
 
-    // Activation du slider après ouverture
     layer.on('popupopen', function(e) {
 
         var popupNode = e.popup.getElement();
@@ -363,7 +352,6 @@ function pop_Projets_points_2(feature, layer) {
         }
     });
 }
-
         function style_Projets_points_2_0(feature) {
             switch(String(feature.properties['Axe'])) {
                 case 'Attractivite & accompagnement des acteurs':
