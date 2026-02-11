@@ -262,67 +262,67 @@
         bounds_group.addLayer(layer_Commune_1);
         map.addLayer(layer_Commune_1);
         function pop_Projets_points_2(feature, layer) {
-            layer.on({
-                mouseout: function(e) {
-                    if (typeof layer.closePopup == 'function') {
-                        layer.closePopup();
-                    } else {
-                        layer.eachLayer(function(feature){
-                            feature.closePopup()
-                        });
-                    }
-                },
-                mouseover: highlightFeature,
+
+    // On supprime complètement mouseover / mouseout
+    // Le popup s'ouvrira uniquement au clic
+
+    var nom = feature.properties['Nom'] || '';
+    var description = feature.properties['Description'] || '';
+    var quartier = feature.properties['Quartier'] || '';
+    var statut = feature.properties['Statut'] || '';
+    var categorie = feature.properties['Categorie'] || '';
+    var axe = feature.properties['Axe'] || '';
+    var date = feature.properties['Date'] || '';
+
+    var imgAvant = feature.properties['Photo_avant'];
+    var imgApres = feature.properties['Photo_apres'];
+
+    var popupContent = `
+        <div style="font-family: 'Open Sans', sans-serif;">
+            <h3 style="margin-bottom:5px;">${nom}</h3>
+            <p>${description}</p>
+            <p><strong>Quartier :</strong> ${quartier}</p>
+            <p><strong>Statut :</strong> ${statut}</p>
+            <p><strong>Catégorie :</strong> ${categorie}</p>
+            <p><strong>Axe :</strong> ${axe}</p>
+            <p>${date}</p>
+        </div>
+    `;
+
+    if (imgAvant && imgApres) {
+        popupContent += `
+            <div class="compare-container">
+                <img src="images/${imgAvant}">
+                <img src="images/${imgApres}" class="after">
+                <input type="range" min="0" max="100" value="50" class="compare-slider">
+            </div>
+        `;
+    } else if (imgAvant) {
+        popupContent += `<img src="images/${imgAvant}" style="width:100%; margin-top:10px;">`;
+    } else if (imgApres) {
+        popupContent += `<img src="images/${imgApres}" style="width:100%; margin-top:10px;">`;
+    }
+
+    layer.bindPopup(popupContent, {
+        maxWidth: 480,
+        autoClose: true,
+        closeOnClick: true
+    });
+
+    layer.on('popupopen', function(e) {
+
+        var popupNode = e.popup.getElement();
+        var slider = popupNode.querySelector('.compare-slider');
+        var afterImg = popupNode.querySelector('.after');
+
+        if (slider && afterImg) {
+            slider.addEventListener('input', function() {
+                afterImg.style.clipPath =
+                    "inset(0 " + (100 - this.value) + "% 0 0)";
             });
-            var popupContent = '<table>\
-                    <tr>\
-                        <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Nom</th>\
-                        <td>' + (feature.properties['Nom'] !== null ? autolinker.link(String(feature.properties['Nom']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Description</th>\
-                        <td>' + (feature.properties['Description'] !== null ? autolinker.link(String(feature.properties['Description']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Quartier</th>\
-                        <td>' + (feature.properties['Quartier'] !== null ? autolinker.link(String(feature.properties['Quartier']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Statut</th>\
-                        <td>' + (feature.properties['Statut'] !== null ? autolinker.link(String(feature.properties['Statut']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <td colspan="2">' + (feature.properties['Date'] !== null ? autolinker.link(String(feature.properties['Date']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Categorie</th>\
-                        <td>' + (feature.properties['Categorie'] !== null ? autolinker.link(String(feature.properties['Categorie']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <td colspan="2">' + (feature.properties['Surface'] !== null ? autolinker.link(String(feature.properties['Surface']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Photo_avant</th>\
-                        <td>' + (feature.properties['Photo_avant'] !== null ? '<img src="images/' + String(feature.properties['Photo_avant']).replace(/[\\/:]/g, '_').trim().replace(/'/g, '\'').replace(/"/g, '&quot;') + '">' : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Photo_apres</th>\
-                        <td>' + (feature.properties['Photo_apres'] !== null ? '<img src="images/' + String(feature.properties['Photo_apres']).replace(/[\\/:]/g, '_').trim().replace(/'/g, '\'').replace(/"/g, '&quot;') + '">' : '') + '</td>\
-                    </tr>\
-                    <tr>\
-                        <th scope="row">Axe</th>\
-                        <td>' + (feature.properties['Axe'] !== null ? autolinker.link(String(feature.properties['Axe']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
-                    </tr>\
-                </table>';
-            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
-			layer.on('popupopen', function(e) {
-				addClassToPopupIfMedia(content, e.popup);
-			});
-			layer.bindPopup(content, { maxHeight: 400 });
         }
+    });
+}
 
         function style_Projets_points_2_0(feature) {
             switch(String(feature.properties['Axe'])) {
