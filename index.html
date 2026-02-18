@@ -129,29 +129,30 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     // Clic sur un symbole = ouverture popup
-    map.on('singleclick', function (evt) {
+   map.on('singleclick', function (evt) {
 
-        var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
-            return feature;
-        });
+    var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+        return feature;
+    });
 
-        if (feature) {
+    if (feature) {
 
-            var props = feature.getProperties();
-            var html = "<h2>" + (props.nom || "Information") + "</h2>";
+        var props = feature.getProperties();
+        var html = "<h2>" + (props.nom || "Information") + "</h2>";
 
-            for (var key in props) {
-                if (key !== 'geometry' && props[key] !== null) {
-                    html += "<p><strong>" + key + " :</strong> " + props[key] + "</p>";
-                }
+        for (var key in props) {
+            if (key !== 'geometry' && props[key] !== null) {
+                html += "<p><strong>" + key + " :</strong> " + props[key] + "</p>";
             }
-
-            content.innerHTML = html;
-            overlay.setPosition(evt.coordinate);
         }
 
-        // IMPORTANT : on ne ferme plus le popup si clic ailleurs
-    });
+        content.innerHTML = html;
+
+        // === AJOUT du console.log ===
+        console.log("Coordonnée du clic :", evt.coordinate);
+
+        overlay.setPosition(evt.coordinate);
+    }
 
 });
 </script>
