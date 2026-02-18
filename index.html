@@ -1,85 +1,74 @@
 <!doctype html>
 <html lang="fr">
 <head>
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+<meta charset="utf-8">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
 
-    <title>Municipales 2026 - Pour Penvénan</title>
+<title>Municipales 2026 - Pour Penvénan</title>
 
-    <!-- Styles -->
-    <link rel="stylesheet" href="./resources/ol.css">
-    <link rel="stylesheet" href="./resources/ol-layerswitcher.css">
-    <link rel="stylesheet" href="./resources/qgis2web.css">
-    <link rel="stylesheet" href="resources/fontawesome-all.min.css">
-    <link href="resources/photon-geocoder-autocomplete.min.css" rel="stylesheet">
+<link rel="stylesheet" href="./resources/ol.css">
+<link rel="stylesheet" href="./resources/ol-layerswitcher.css">
+<link rel="stylesheet" href="./resources/qgis2web.css">
+<link rel="stylesheet" href="resources/fontawesome-all.min.css">
+<link href="resources/photon-geocoder-autocomplete.min.css" rel="stylesheet">
 
-    <style>
-        html, body, #map {
-            width: 100%;
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            background-color: #ffffff;
-        }
+<style>
+html, body, #map {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background: #ffffff;
+}
 
-        .ol-control > * {
-            background-color: #f8f8f8 !important;
-            color: #444 !important;
-            border-radius: 0px;
-        }
+/* POPUP LARGE ET STABLE */
+.ol-popup {
+    position: absolute;
+    background-color: #ffffff;
+    box-shadow: 0 12px 35px rgba(0,0,0,0.35);
+    padding: 22px;
+    border-radius: 16px;
+    border: 1px solid #cccccc;
 
-        .ol-control {
-            background-color: rgba(255,255,255,.4) !important;
-            padding: 2px !important;
-        }
+    width: 500px;
+    max-width: 92vw;
+    max-height: 75vh;
 
-        .ol-control > *:hover {
-            background-color: rgba(248, 248, 248, 0.7) !important;
-        }
+    overflow-y: auto;
+    font-size: 15px;
 
-        /* POPUP STYLE */
-        .ol-popup {
-            position: absolute;
-            background-color: white;
-            box-shadow: 0 3px 12px rgba(0,0,0,0.25);
-            padding: 15px;
-            border-radius: 12px;
-            border: 1px solid #cccccc;
-            min-width: 260px;
-            max-width: 380px;
-            max-height: 320px;
-            overflow-y: auto;
-        }
+    transform: translate(-50%, -100%);
+}
 
-        .ol-popup-closer {
-            text-decoration: none;
-            position: absolute;
-            top: 6px;
-            right: 10px;
-            font-size: 18px;
-            color: #444;
-        }
+.ol-popup-closer {
+    text-decoration: none;
+    position: absolute;
+    top: 8px;
+    right: 12px;
+    font-size: 18px;
+    color: #444;
+}
 
-        .ol-popup-closer::after {
-            content: "✕";
-        }
-    </style>
+.ol-popup-closer:after {
+    content: "✕";
+}
+</style>
 </head>
 
 <body>
 
 <div id="map"></div>
 
-<!-- Popup -->
+<!-- POPUP -->
 <div id="popup" class="ol-popup">
-    <a href="#" id="popup-closer" class="ol-popup-closer"></a>
-    <div id="popup-content"></div>
+<a href="#" id="popup-closer" class="ol-popup-closer"></a>
+<div id="popup-content"></div>
 </div>
 
-<!-- Scripts -->
+<!-- SCRIPTS -->
 <script src="resources/qgis2web_expressions.js"></script>
 <script src="resources/proj4.js"></script>
 <script>proj4.defs('EPSG:4326', '+proj=longlat +datum=WGS84 +no_defs');</script>
@@ -118,11 +107,11 @@ document.addEventListener('DOMContentLoaded', function () {
     var content = document.getElementById('popup-content');
     var closer = document.getElementById('popup-closer');
 
-    // Création overlay OpenLayers
     var overlay = new ol.Overlay({
         element: container,
-        autoPan: true,
-        autoPanAnimation: { duration: 250 }
+        autoPan: false,
+        positioning: 'bottom-center',
+        stopEvent: true
     });
 
     map.addOverlay(overlay);
@@ -131,16 +120,15 @@ document.addEventListener('DOMContentLoaded', function () {
     closer.onclick = function (evt) {
         evt.preventDefault();
         overlay.setPosition(undefined);
-        closer.blur();
         return false;
     };
 
-    // Empêche la carte de zoomer quand on scroll dans le popup
-    container.addEventListener('wheel', function(e) {
+    // Empêche le zoom quand on scroll dans le popup
+    container.addEventListener('wheel', function (e) {
         e.stopPropagation();
     });
 
-    // Ouvre popup au clic sur un symbole
+    // Clic sur un symbole = ouverture popup
     map.on('singleclick', function (evt) {
 
         var feature = map.forEachFeatureAtPixel(evt.pixel, function (feature) {
@@ -150,10 +138,10 @@ document.addEventListener('DOMContentLoaded', function () {
         if (feature) {
 
             var props = feature.getProperties();
-            var html = "<h3>" + (props.nom || "Information") + "</h3>";
+            var html = "<h2>" + (props.nom || "Information") + "</h2>";
 
             for (var key in props) {
-                if (key !== 'geometry') {
+                if (key !== 'geometry' && props[key] !== null) {
                     html += "<p><strong>" + key + " :</strong> " + props[key] + "</p>";
                 }
             }
@@ -162,7 +150,7 @@ document.addEventListener('DOMContentLoaded', function () {
             overlay.setPosition(evt.coordinate);
         }
 
-        // IMPORTANT : on ne ferme pas le popup si clic ailleurs
+        // IMPORTANT : on ne ferme plus le popup si clic ailleurs
     });
 
 });
