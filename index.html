@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="./resources/ol.css">
+        <link rel="stylesheet" href="resources/fontawesome-all.min.css">
+        <link href="resources/photon-geocoder-autocomplete.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="./resources/ol-layerswitcher.css">
+        <link rel="stylesheet" href="./resources/qgis2web.css">
+        <style>
+        html, body {
+            background-color: #ffffff;
+        }
+        .ol-control > * {
+            background-color: #f8f8f8!important;
+            color: #444444!important;
+            border-radius: 0px;
+        }
+        .ol-attribution a, .gcd-gl-input::placeholder, .search-layer-input-search::placeholder {
+            color: #444444!important;
+        }
+        .search-layer-input-search {
+            background-color: #f8f8f8!important;
+        }
+        .ol-control > *:focus, .ol-control > *:hover {
+            background-color: rgba(248, 248, 248, 0.7)!important;
+        }
+        .ol-control {
+            background-color: rgba(255,255,255,.4) !important;
+            padding: 2px !important;
+        }
+
+        html, body, #map {
+            width: 100%;
+            height: 100%;
+            padding: 0;
+            margin: 0;
+        }
+
+        /* Popup : caché par défaut, visible uniquement via .ol-popup-visible */
+        .ol-popup {
+            display: none;
+            position: absolute;
+            background-color: white;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #cccccc;
+            bottom: 12px;
+            left: -50px;
+            min-width: 220px;
+            z-index: 1000;
+        }
+        .ol-popup.ol-popup-visible {
+            display: block;
+        }
+        .ol-popup-closer {
+            text-decoration: none;
+            position: absolute;
+            top: 4px;
+            right: 8px;
+            font-size: 16px;
+            color: #444;
+        }
+        .ol-popup-closer::after {
+            content: "✕";
+        }
+        </style>
+        <title>Municipales 2026 "Pour Penvénan"</title>
+    </head>
+    <body>
+        <div id="map">
+            <div id="popup" class="ol-popup">
+                <a href="#" id="popup-closer" class="ol-popup-closer"></a>
+                <div id="popup-content"></div>
+            </div>
+        </div>
+
+        <script src="resources/qgis2web_expressions.js"></script>
+        <script src="resources/proj4.js"></script>
+        <script>proj4.defs('EPSG:4326', '+proj=longlat +datum=WGS84 +no_defs');</script>
+        <script src="./resources/functions.js"></script>
+        <script src="./resources/ol.js"></script>
+        <script src="./resources/ol-layerswitcher.js"></script>
+        <script src="resources/photon-geocoder-autocomplete.min.js"></script>
+
+        <script src="layers/Limitescommunale_2.js"></script>
+        <script src="layers/LabelMonumentshistorique_3.js"></script>
+        <script src="layers/ZonedePresomptionArcheologique_4.js"></script>
+        <script src="layers/Patrimoinelineaire_5.js"></script>
+        <script src="layers/Siteshistoriques_6.js"></script>
+        <script src="layers/Voiesdedplacement_7.js"></script>
+        <script src="layers/Axesduprogramme_8.js"></script>
+
+        <script src="styles/Limitescommunale_2_style.js"></script>
+        <script src="styles/LabelMonumentshistorique_3_style.js"></script>
+        <script src="styles/ZonedePresomptionArcheologique_4_style.js"></script>
+        <script src="styles/Patrimoinelineaire_5_style.js"></script>
+        <script src="styles/Siteshistoriques_6_style.js"></script>
+        <script src="styles/Voiesdedplacement_7_style.js"></script>
+        <script src="styles/Axesduprogramme_8_style.js"></script>
+
+        <script src="./layers/layers.js" type="text/javascript"></script>
+        <script src="./resources/Autolinker.min.js"></script>
+        <script src="./resources/qgis2web.js"></script>
+
+        <script>
+        // Gestion du popup : ouverture et fermeture au clic uniquement
+        document.addEventListener('DOMContentLoaded', function () {
+            var popup = document.getElementById('popup');
+            var closer = document.getElementById('popup-closer');
+
+            // Fermer le popup au clic sur la croix
+            closer.addEventListener('click', function (e) {
+                e.preventDefault();
+                popup.classList.remove('ol-popup-visible');
+            });
+
+            // Exposer une fonction globale pour ouvrir le popup depuis qgis2web.js
+            window.showPopup = function (coordinate, content) {
+                document.getElementById('popup-content').innerHTML = content;
+                popup.classList.add('ol-popup-visible');
+            };
+
+            window.hidePopup = function () {
+                popup.classList.remove('ol-popup-visible');
+            };
+        });
+        </script>
+    </body>
+</html>
