@@ -178,18 +178,9 @@
         layer_ESRI_1;
         map.addLayer(layer_ESRI_1);
         function pop_Limitescommunale_2(feature, layer) {
-            layer.on({
-                mouseout: function(e) {
-                    if (typeof layer.closePopup == 'function') {
-                        layer.closePopup();
-                    } else {
-                        layer.eachLayer(function(feature){
-                            feature.closePopup()
-                        });
-                    }
-                },
-                mouseover: highlightFeature,
-            });
+              // Suppression du comportement au survol
+    layer.off('mouseover');
+    layer.off('mouseout');
             var popupContent = '<table>\
                     <tr>\
                         <td colspan="2">' + (feature.properties['fid'] !== null ? autolinker.link(String(feature.properties['fid']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
@@ -281,18 +272,9 @@
         bounds_group.addLayer(layer_Limitescommunale_2);
         map.addLayer(layer_Limitescommunale_2);
         function pop_LabelMonumentshistorique_3(feature, layer) {
-            layer.on({
-                mouseout: function(e) {
-                    if (typeof layer.closePopup == 'function') {
-                        layer.closePopup();
-                    } else {
-                        layer.eachLayer(function(feature){
-                            feature.closePopup()
-                        });
-                    }
-                },
-                mouseover: highlightFeature,
-            });
+   // Suppression du comportement au survol
+    layer.off('mouseover');
+    layer.off('mouseout');
             var popupContent = '<table>\
                     <tr>\
                         <td colspan="2"><strong>appelation</strong><br />' + (feature.properties['appelation'] !== null ? autolinker.link(String(feature.properties['appelation']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
@@ -356,18 +338,9 @@
         bounds_group.addLayer(layer_LabelMonumentshistorique_3);
         map.addLayer(layer_LabelMonumentshistorique_3);
         function pop_ZonedePresomptionArcheologique_4(feature, layer) {
-            layer.on({
-                mouseout: function(e) {
-                    if (typeof layer.closePopup == 'function') {
-                        layer.closePopup();
-                    } else {
-                        layer.eachLayer(function(feature){
-                            feature.closePopup()
-                        });
-                    }
-                },
-                mouseover: highlightFeature,
-            });
+   // Suppression du comportement au survol
+    layer.off('mouseover');
+    layer.off('mouseout');
             var popupContent = '<table>\
                     <tr>\
                         <td colspan="2">' + (feature.properties['IDENTIFIAN'] !== null ? autolinker.link(String(feature.properties['IDENTIFIAN']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
@@ -499,18 +472,9 @@
         bounds_group.addLayer(layer_Patrimoinelineaire_5);
         map.addLayer(layer_Patrimoinelineaire_5);
         function pop_Siteshistoriques_6(feature, layer) {
-            layer.on({
-                mouseout: function(e) {
-                    if (typeof layer.closePopup == 'function') {
-                        layer.closePopup();
-                    } else {
-                        layer.eachLayer(function(feature){
-                            feature.closePopup()
-                        });
-                    }
-                },
-                mouseover: highlightFeature,
-            });
+   // Suppression du comportement au survol
+    layer.off('mouseover');
+    layer.off('mouseout');
             var popupContent = '<table>\
                     <tr>\
                         <td colspan="2"><strong>historic</strong><br />' + (feature.properties['historic'] !== null ? autolinker.link(String(feature.properties['historic']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
@@ -554,7 +518,7 @@
         rotationAngle: 0.5934122000000001,
         rotationOrigin: 'center center',
         icon: L.icon({
-            iconUrl: 'markers/Siteshistoriques_6.svg',
+            iconUrl: 'markers/christian.svg',
             iconSize: [15.2, 15.2]
         }),
                 interactive: true,
@@ -566,7 +530,7 @@
         rotationAngle: 0.5934122000000001,
         rotationOrigin: 'center center',
         icon: L.icon({
-            iconUrl: 'markers/Siteshistoriques_6.svg',
+            iconUrl: 'markers/fountain.svg',
             iconSize: [15.2, 15.2]
         }),
                 interactive: true,
@@ -578,7 +542,7 @@
         rotationAngle: 0.5934122000000001,
         rotationOrigin: 'center center',
         icon: L.icon({
-            iconUrl: 'markers/Siteshistoriques_6.svg',
+            iconUrl: 'markers/fountain_1.svg',
             iconSize: [15.2, 15.2]
         }),
                 interactive: true,
@@ -607,7 +571,7 @@
         rotationAngle: 0.5934122000000001,
         rotationOrigin: 'center center',
         icon: L.icon({
-            iconUrl: 'markers/Siteshistoriques_6.svg',
+            iconUrl: 'markers/manor.svg',
             iconSize: [15.2, 15.2]
         }),
                 interactive: true,
@@ -619,7 +583,7 @@
         rotationAngle: 0.5934122000000001,
         rotationOrigin: 'center center',
         icon: L.icon({
-            iconUrl: 'markers/Siteshistoriques_6.svg',
+            iconUrl: 'markers/memorial.svg',
             iconSize: [15.2, 15.2]
         }),
                 interactive: true,
@@ -647,7 +611,7 @@
         rotationAngle: 0.5934122000000001,
         rotationOrigin: 'center center',
         icon: L.icon({
-            iconUrl: 'markers/Siteshistoriques_6.svg',
+            iconUrl: 'markers/christian_1.svg',
             iconSize: [15.2, 15.2]
         }),
                 interactive: true,
@@ -659,7 +623,7 @@
         rotationAngle: 0.5934122000000001,
         rotationOrigin: 'center center',
         icon: L.icon({
-            iconUrl: 'markers/Siteshistoriques_6.svg',
+            iconUrl: 'markers/bell_tower.svg',
             iconSize: [15.2, 15.2]
         }),
                 interactive: true,
@@ -849,18 +813,9 @@
         });
         bounds_group.addLayer(layer_Voiesdedplacement_7);
         function pop_Axesduprogramme_8(feature, layer) {
-            layer.on({
-                mouseout: function(e) {
-                    if (typeof layer.closePopup == 'function') {
-                        layer.closePopup();
-                    } else {
-                        layer.eachLayer(function(feature){
-                            feature.closePopup()
-                        });
-                    }
-                },
-                mouseover: highlightFeature,
-            });
+   // Suppression du comportement au survol
+    layer.off('mouseover');
+    layer.off('mouseout');
             var popupContent = '<table>\
                     <tr>\
                         <td colspan="2"><strong>Nom</strong><br />' + (feature.properties['Nom'] !== null ? autolinker.link(String(feature.properties['Nom']).replace(/'/g, '\'').toLocaleString()) : '') + '</td>\
