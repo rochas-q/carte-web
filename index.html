@@ -849,7 +849,7 @@
             pane: 'pane_Siteshistoriques_6',
             onEachFeature: pop_Siteshistoriques_6,
             pointToLayer: function (feature, latlng) {
-                var style  = style_Siteshistoriques_6_0(feature));
+                var style  = style_Siteshistoriques_6_0(feature);
                   /* CORRECTION : si le style définit une 'shape' (ex: Lavoir),
                    on utilise L.shapeMarker ; sinon L.marker classique. */
                 if (style && style.shape) {
