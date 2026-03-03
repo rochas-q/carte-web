@@ -1180,6 +1180,18 @@
 		/* ============================================================
            RECHERCHE D'ADRESSE (France BAN)
         ============================================================ */
+		const url = {"Nominatim OSM": "https://nominatim.openstreetmap.org/search?format=geojson&addressdetails=1&",
+        "France BAN": "https://api-adresse.data.gouv.fr/search/?"}
+        var photonControl = L.control.photon({
+            url: url["France BAN"],
+            feedbackLabel: '',
+            position: 'topleft',
+            includePosition: true,
+            initial: true,
+            // resultsHandler: myHandler,
+        }).addTo(map);
+        photonControl._container.childNodes[0].style.borderRadius="10px"
+        // Create a variable to store the geoJSON data
         var x = null;
         var z = null;
         var photonControl = L.control.photon({
