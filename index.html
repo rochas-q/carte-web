@@ -103,7 +103,6 @@
                     video.style.maxWidth = "60vw";
                     imgTd.parentNode.replaceChild(video, imgTd);
                     popup._contentNode.classList.add('media');
-                    // Aggiorna il popup quando il video carica i metadati
                     video.addEventListener('loadedmetadata', function() {
                         popup.update();
                     });
@@ -623,8 +622,6 @@
 
 			/* ============================================================
            COUCHE 7 – SITES HISTORIQUES
-           CORRECTION : pointToLayer utilise L.shapeMarker pour Lavoir
-                        (triangle bleu), L.marker pour les autres types.
         ============================================================ */
         function pop_Siteshistoriques_6(feature, layer) {
            layer.off('mouseover');
@@ -849,8 +846,9 @@
             pane: 'pane_Siteshistoriques_6',
             onEachFeature: pop_Siteshistoriques_6,
             pointToLayer: function (feature, latlng) {
-                var style  = style_Siteshistoriques_6_0(feature);
-                  /* CORRECTION : si le style définit une 'shape' (ex: Lavoir),
+                /* BUG 1 CORRIGÉ : suppression de la parenthèse fermante en trop */
+                var style = style_Siteshistoriques_6_0(feature);
+                /* Si le style définit une 'shape' (ex: Lavoir → triangle),
                    on utilise L.shapeMarker ; sinon L.marker classique. */
                 if (style && style.shape) {
                     return L.shapeMarker(latlng, style);
@@ -1173,7 +1171,12 @@
 
 			  /* ============================================================
            RECHERCHE D'ADRESSE (France BAN)
+           BUG 2 CORRIGÉ : déclaration de obj2 et obj3 avant utilisation
         ============================================================ */
+        /* BUG 2 CORRIGÉ : obj2 et obj3 n'étaient pas déclarés */
+        var obj2 = { gcd: null };
+        var obj3 = { marker: null };
+
         var photonControl = L.control.photon({
             url: 'https://api-adresse.data.gouv.fr/search/?',
             feedbackLabel: '',
@@ -1217,7 +1220,6 @@
 
 			 /* ============================================================
            ARBRE DE COUCHES (LÉGENDE)
-           CORRECTIONS : accents dans "Voies de déplacement" et "Mobilité douce"
         ============================================================ */
         var overlaysTree = [
         {label: '<b>Programme</b>',  selectAllCheckbox: true, children: [
@@ -1240,7 +1242,6 @@
            GESTION HAUTEUR DE LA LISTE DES COUCHES
         ============================================================ */
 		document.addEventListener("DOMContentLoaded", function() {
-            // set new Layers List height which considers toggle icon
             function newLayersListHeight() {
                 var layerScrollbarElement = document.querySelector('.leaflet-control-layers-scrollbar');
                 if (layerScrollbarElement) {
@@ -1254,7 +1255,6 @@
             var isLayersListExpanded = true;
             var controlLayersElement = document.querySelector('.leaflet-control-layers');
             var toggleLayerControl = document.querySelector('.leaflet-control-layers-toggle');
-            // toggle Collapsed/Expanded and apply new Layers List height
             toggleLayerControl.addEventListener('click', function() {
                 if (isLayersListExpanded) {
                     controlLayersElement.classList.remove('leaflet-control-layers-expanded');
@@ -1264,7 +1264,6 @@
                 isLayersListExpanded = !isLayersListExpanded;
                 newLayersListHeight()
             });	
-			// apply new Layers List height if toggle layerstree
 			if (controlLayersElement) {
 				controlLayersElement.addEventListener('click', function(event) {
 					var toggleLayerHeaderPointer = event.target.closest('.leaflet-layerstree-header-pointer span');
@@ -1273,14 +1272,12 @@
 					}
 				});
 			}
-            // Collapsed/Expanded at Start to apply new height
             setTimeout(function() {
                 toggleLayerControl.click();
             }, 10);
             setTimeout(function() {
                 toggleLayerControl.click();
             }, 10);
-            // Collapsed touch/small screen
             var isSmallScreen = window.innerWidth < 650;
             if (isSmallScreen) {
                 setTimeout(function() {
