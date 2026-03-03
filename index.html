@@ -1013,8 +1013,7 @@
         layer_Axesduprogramme_9.eachLayer(function(layer) {
             layer.bindTooltip(
                 (layer.feature.properties['Nom'] !== null
-                    ? String('<div style="color: #000000; font-size: 8pt; font-weight: bold; font-family: \'Open Sans\', sans-serif; text-shadow: -1px -1px 0 #fff, 1px -1px 0 #fff, -1px 1px 0 #fff, 1px 1px 0 #fff, 0 -2px 0 #fff, 0 2px 0 #fff, -2px 0 0 #fff, 2px 0 0 #fff;">' + layer.feature.properties['Nom']) + '</div>'
-                { permanent: true, offset: [-0, -16], className: 'css_Axesduprogramme_9' }
+                   ? String('<div style="color: #ffffff; font-size: 8pt; font-weight: bold; font-family: \'Open Sans\', sans-serif; background-color: #000000; padding: 1px 4px; border-radius: 2px;">' + layer.feature.properties['Nom']) + '</div>'
             );
             labels.push(layer);
             totalMarkers += 1;
