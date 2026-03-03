@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="fr">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <meta name="viewport" content="initial-scale=1,user-scalable=no,maximum-scale=1,width=device-width">
+        <meta name="mobile-web-app-capable" content="yes">
+        <meta name="apple-mobile-web-app-capable" content="yes">
+        <link rel="stylesheet" href="css/leaflet.css">
+        <link rel="stylesheet" href="css/L.Control.Layers.Tree.css">
+        <link rel="stylesheet" href="css/L.Control.Locate.min.css">
+        <link rel="stylesheet" href="css/qgis2web.css">
+        <link rel="stylesheet" href="css/fontawesome-all.min.css">
+        <link rel="stylesheet" href="css/leaflet.photon.css">
+        <link rel="stylesheet" href="css/leaflet-measure.css">
+        <style>
+            html, body, #map {
+                width: 100%;
+                height: 100%;
+                padding: 0;
+                margin: 0;
+            }
+        </style>
+        <title>Municipales 2026 "Pour Penvénan"</title>
+    </head>
+    <body>
+        <div id="map"></div>
+
+        <script src="js/qgis2web_expressions.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/L.Control.Layers.Tree.min.js"></script>
+        <script src="js/L.Control.Locate.min.js"></script>
+        <script src="js/multi-style-layer.js"></script>
+        <script src="js/leaflet-svg-shape-markers.min.js"></script>
+        <script src="js/leaflet.rotatedMarker.js"></script>
+        <script src="js/leaflet.pattern.js"></script>
+        <script src="js/leaflet-hash.js"></script>
+        <script src="js/Autolinker.min.js"></script>
+        <script src="js/rbush.min.js"></script>
+        <script src="js/labelgun.min.js"></script>
+        <script src="js/labels.js"></script>
+        <script src="js/leaflet.photon.js"></script>
+        <script src="js/leaflet-measure.js"></script>
+
+        <script src="data/Limitescommunale_1.js"></script>
+        <script src="data/zonesncessitantlavisdugestionnaireN2000_2.js"></script>
+        <script src="data/LabelMonumentshistorique_3.js"></script>
+        <script src="data/ZonesdepresomptiondeprescriptionArcheologique_4.js"></script>
+        <script src="data/Patrimoinelineaire_5.js"></script>
+        <script src="data/Siteshistoriques_6.js"></script>
+        <script src="data/Voiesdedplacement_7.js"></script>
+        <script src="data/Axesduprogramme_8.js"></script>
+
+        <script>
+        /* ============================================================
+           UTILITAIRES
+        ============================================================ */
+
+        var highlightLayer;
+
+        function highlightFeature(e) {
+            highlightLayer = e.target;
+            highlightLayer.openPopup();
+        }
+
+        /**
+         * Supprime les lignes vides du contenu d'un popup.
+         */
+        function removeEmptyRowsFromPopupContent(content, feature) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var rows = tempDiv.querySelectorAll('tr');
+            for (var i = 0; i < rows.length; i++) {
+                var td = rows[i].querySelector('td.visible-with-data');
+                var key = td ? td.id : '';
+                if (td && td.classList.contains('visible-with-data') && feature.properties[key] == null) {
+                    rows[i].parentNode.removeChild(rows[i]);
+                }
+            }
+            return tempDiv.innerHTML;
+        }
+
+        /**
+         * Ajoute une classe CSS au popup si son contenu contient un média
+         * (image, audio, vidéo).
+         */
+        function addClassToPopupIfMedia(content, popup) {
+            var tempDiv = document.createElement('div');
+            tempDiv.innerHTML = content;
+            var imgTd = tempDiv.querySelector('td img');
+            if (imgTd) {
+                var src = imgTd.getAttribute('src');
+                if (/\.(jpg|jpeg|png|gif|bmp|webp|avif)$/i.test(src)) {
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function () { popup.update(); }, 10);
+                } else if (/\.(mp3|wav|ogg|aac)$/i.test(src)) {
+                    var audio = document.createElement('audio');
+                    audio.controls = true;
+                    audio.src = src;
+                    imgTd.parentNode.replaceChild(audio, imgTd);
+                    popup._contentNode.classList.add('media');
+                    setTimeout(function () {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else if (/\.(mp4|webm|ogg|mov)$/i.test(src)) {
+                    var video = document.createElement('video');
+                    video.controls = true;
+                    video.src = src;
+                    video.style.width = '400px';
+                    video.style.height = '300px';
+                    video.style.maxHeight = '60vh';
+                    video.style.maxWidth = '60vw';
+                    imgTd.parentNode.replaceChild(video, imgTd);
+                    popup._contentNode.classList.add('media');
+                    video.addEventListener('loadedmetadata', function () { popup.update(); });
+                    setTimeout(function () {
+                        popup.setContent(tempDiv.innerHTML);
+                        popup.update();
+                    }, 10);
+                } else {
+                    popup._contentNode.classList.remove('media');
+                }
+            } else {
+                popup._contentNode.classList.remove('media');
+            }
+        }
+
+        /**
+         * Construit une cellule de popup à partir d'une valeur de propriété.
+         * Retourne une chaîne <td> prête à insérer dans un <tr>.
+         */
+        function propCell(value, label, extraClass, extraId) {
+            var val = (value !== null && value !== undefined)
+                ? autolinker.link(String(value).replace(/'/g, "\u2019").toLocaleString())
+                : '';
+            var classAttr = extraClass ? ' class="' + extraClass + '"' : '';
+            var idAttr   = extraId   ? ' id="' + extraId + '"'     : '';
+            var labelHtml = label ? '<strong>' + label + '</strong><br />' : '';
+            return '<td colspan="2"' + classAttr + idAttr + '>' + labelHtml + val + '</td>';
+        }
+
+        /* ============================================================
+           INITIALISATION DE LA CARTE
+        ============================================================ */
+
+        var map = L.map('map', { zoomControl: false, maxZoom: 28, minZoom: 1 });
+        var hash = new L.Hash(map);
+
+        map.attributionControl.setPrefix(
+            '<a href="https://github.com/tomchadwin/qgis2web" target="_blank">qgis2web</a> &middot; ' +
+            '<a href="https://leafletjs.com" title="A JS library for interactive maps">Leaflet</a> &middot; ' +
+            '<a href="https://qgis.org">QGIS</a>'
+        );
+
+        var autolinker = new Autolinker({ truncate: { length: 30, location: 'smart' } });
+
+        /* Titre */
+        var title = new L.Control({ position: 'topright' });
+        title.onAdd = function () {
+            this._div = L.DomUtil.create('div', 'info');
+            this._div.innerHTML = '<h2>Municipales 2026 &laquo;&nbsp;Pour Penv&eacute;nan&nbsp;&raquo;</h2>';
+            return this._div;
+        };
+        title.addTo(map);
+
+        /* Contrôles */
+        L.control.zoom({ position: 'topleft' }).addTo(map);
+        L.control.locate({ locateOptions: { maxZoom: 19 } }).addTo(map);
+
+        var measureControl = new L.Control.Measure({
+            position: 'topleft',
+            primaryLengthUnit: 'meters',
+            secondaryLengthUnit: 'kilometers',
+            primaryAreaUnit: 'sqmeters',
+            secondaryAreaUnit: 'hectares'
+        });
+        measureControl.addTo(map);
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].innerHTML = '';
+        document.getElementsByClassName('leaflet-control-measure-toggle')[0].className += ' fas fa-ruler';
+
+        var bounds_group = new L.featureGroup([]);
+
+        function setBounds() {
+            if (bounds_group.getLayers().length) {
+                map.fitBounds(bounds_group.getBounds());
+            }
+        }
+
+        /* ============================================================
+           FONDS DE CARTE
+        ============================================================ */
+
+        map.createPane('pane_OpenStreetMap_0');
+        map.getPane('pane_OpenStreetMap_0').style.zIndex = 400;
+
+        var layer_OpenStreetMap_0 = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            pane: 'pane_OpenStreetMap_0',
+            opacity: 1.0,
+            attribution: '',
+            minZoom: 1,
+            maxZoom: 28,
+            minNativeZoom: 0,
+            maxNativeZoom: 19
+        });
+        map.addLayer(layer_OpenStreetMap_0);
+
+        /* ============================================================
+           COUCHE 1 – LIMITES COMMUNALES
+        ============================================================ */
+
+        function pop_Limitescommunale_1(feature, layer) {
+            layer.off('mouseover');
+            layer.off('mouseout');
+            var p = feature.properties;
+            var popupContent = '<table>' +
+                '<tr>' + propCell(p['fid']) + '</tr>' +
+                '<tr>' + propCell(p['full_id']) + '</tr>' +
+                '<tr>' + propCell(p['osm_id']) + '</tr>' +
+                '<tr>' + propCell(p['osm_type']) + '</tr>' +
+                '<tr>' + propCell(p['ref:INSEE']) + '</tr>' +
+                '<tr>' + propCell(p['boundary']) + '</tr>' +
+                '<tr>' + propCell(p['admin_level']) + '</tr>' +
+                '<tr>' + propCell(p['wikipedia']) + '</tr>' +
+                '<tr>' + propCell(p['wikidata']) + '</tr>' +
+                '<tr>' + propCell(p['type']) + '</tr>' +
+                '<tr>' + propCell(p['source:postal_code']) + '</tr>' +
+                '<tr>' + propCell(p['source:population']) + '</tr>' +
+                '<tr>' + propCell(p['ref:FR:SIREN']) + '</tr>' +
+                '<tr>' + propCell(p['postal_code']) + '</tr>' +
+                '<tr>' + propCell(p['population:date']) + '</tr>' +
+                '<tr>' + propCell(p['population']) + '</tr>' +
+                '<tr>' + propCell(p['name:br']) + '</tr>' +
+                '<tr>' + propCell(p['name']) + '</tr>' +
+                '</table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function (e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Limitescommunale_1_0() {
+            return {
+                pane: 'pane_Limitescommunale_1',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'square',
+                lineJoin: 'bevel',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: false
+            };
+        }
+
+        map.createPane('pane_Limitescommunale_1');
+        map.getPane('pane_Limitescommunale_1').style.zIndex = 401;
+        map.getPane('pane_Limitescommunale_1').style['mix-blend-mode'] = 'normal';
+
+        var layer_Limitescommunale_1 = new L.geoJson(json_Limitescommunale_1, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_Limitescommunale_1',
+            layerName: 'layer_Limitescommunale_1',
+            pane: 'pane_Limitescommunale_1',
+            onEachFeature: pop_Limitescommunale_1,
+            style: style_Limitescommunale_1_0
+        });
+        bounds_group.addLayer(layer_Limitescommunale_1);
+        map.addLayer(layer_Limitescommunale_1);
+
+        /* ============================================================
+           COUCHE 2 – ZONES NATURELLES N2000
+           (couche non-interactive : pas de popup nécessaire)
+        ============================================================ */
+
+        function style_zonesncessitantlavisdugestionnaireN2000_2_0() {
+            return {
+                pane: 'pane_zonesncessitantlavisdugestionnaireN2000_2',
+                opacity: 1,
+                color: 'rgba(255,127,0,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(242,191,144,1.0)',
+                interactive: false
+            };
+        }
+
+        map.createPane('pane_zonesncessitantlavisdugestionnaireN2000_2');
+        map.getPane('pane_zonesncessitantlavisdugestionnaireN2000_2').style.zIndex = 402;
+        map.getPane('pane_zonesncessitantlavisdugestionnaireN2000_2').style['mix-blend-mode'] = 'normal';
+
+        var layer_zonesncessitantlavisdugestionnaireN2000_2 = new L.geoJson(json_zonesncessitantlavisdugestionnaireN2000_2, {
+            attribution: '',
+            interactive: false,
+            dataVar: 'json_zonesncessitantlavisdugestionnaireN2000_2',
+            layerName: 'layer_zonesncessitantlavisdugestionnaireN2000_2',
+            pane: 'pane_zonesncessitantlavisdugestionnaireN2000_2',
+            style: style_zonesncessitantlavisdugestionnaireN2000_2_0
+        });
+        bounds_group.addLayer(layer_zonesncessitantlavisdugestionnaireN2000_2);
+        map.addLayer(layer_zonesncessitantlavisdugestionnaireN2000_2);
+
+        /* ============================================================
+           COUCHE 3 – LABEL MONUMENTS HISTORIQUES
+        ============================================================ */
+
+        function pop_LabelMonumentshistorique_3(feature, layer) {
+            layer.off('mouseover');
+            layer.off('mouseout');
+            var p = feature.properties;
+            var popupContent = '<table>' +
+                '<tr>' + propCell(p['appelation'],  'Appelation') + '</tr>' +
+                '<tr>' + propCell(p['categorie'],   'Catégorie') + '</tr>' +
+                '<tr>' + propCell(p['ressource'],   'Ressource') + '</tr>' +
+                '<tr>' + propCell(p['evenement'],   'Événement') + '</tr>' +
+                '<tr>' + propCell(p['legende'],     'Légende') + '</tr>' +
+                '<tr>' + propCell(p['precision'],   'Précision') + '</tr>' +
+                '<tr>' + propCell(p['statut'],      'Statut',  'visible-with-data', 'statut') + '</tr>' +
+                '<tr>' + propCell(p['maj'],         'Maj',     'visible-with-data', 'maj') + '</tr>' +
+                '</table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function (e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_LabelMonumentshistorique_3_0() {
+            return {
+                pane: 'pane_LabelMonumentshistorique_3',
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(164,113,88,1.0)',
+                interactive: true
+            };
+        }
+
+        map.createPane('pane_LabelMonumentshistorique_3');
+        map.getPane('pane_LabelMonumentshistorique_3').style.zIndex = 403;
+        map.getPane('pane_LabelMonumentshistorique_3').style['mix-blend-mode'] = 'normal';
+
+        var layer_LabelMonumentshistorique_3 = new L.geoJson(json_LabelMonumentshistorique_3, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_LabelMonumentshistorique_3',
+            layerName: 'layer_LabelMonumentshistorique_3',
+            pane: 'pane_LabelMonumentshistorique_3',
+            onEachFeature: pop_LabelMonumentshistorique_3,
+            style: style_LabelMonumentshistorique_3_0
+        });
+        bounds_group.addLayer(layer_LabelMonumentshistorique_3);
+        map.addLayer(layer_LabelMonumentshistorique_3);
+
+        /* ============================================================
+           COUCHE 4 – ZONES DE PRÉSOMPTION ARCHÉOLOGIQUE
+        ============================================================ */
+
+        function pop_ZonesdepresomptiondeprescriptionArcheologique_4(feature, layer) {
+            layer.off('mouseover');
+            layer.off('mouseout');
+            var p = feature.properties;
+            var popupContent = '<table>' +
+                '<tr>' + propCell(p['IDENTIFIAN']) + '</tr>' +
+                '<tr>' + propCell(p['NATURE'],      'Nature') + '</tr>' +
+                '<tr>' + propCell(p['N_ZONE']) + '</tr>' +
+                '<tr>' + propCell(p['DATE_ARRET'],  'Date arrêté') + '</tr>' +
+                '<tr>' + propCell(p['NUM_ARRETE'],  'N° arrêté') + '</tr>' +
+                '<tr>' + propCell(p['NUM_RAA'],     'N° RAA') + '</tr>' +
+                '<tr>' + propCell(p['INSEE']) + '</tr>' +
+                '<tr>' + propCell(p['COMMUNE']) + '</tr>' +
+                '</table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function (e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_ZonesdepresomptiondeprescriptionArcheologique_4_0() {
+            return {
+                pane: 'pane_ZonesdepresomptiondeprescriptionArcheologique_4',
+                opacity: 1,
+                color: 'rgba(247,247,247,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1.0,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: 'rgba(115,111,233,1.0)',
+                interactive: true
+            };
+        }
+
+        map.createPane('pane_ZonesdepresomptiondeprescriptionArcheologique_4');
+        map.getPane('pane_ZonesdepresomptiondeprescriptionArcheologique_4').style.zIndex = 404;
+        map.getPane('pane_ZonesdepresomptiondeprescriptionArcheologique_4').style['mix-blend-mode'] = 'normal';
+
+        var layer_ZonesdepresomptiondeprescriptionArcheologique_4 = new L.geoJson(json_ZonesdepresomptiondeprescriptionArcheologique_4, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_ZonesdepresomptiondeprescriptionArcheologique_4',
+            layerName: 'layer_ZonesdepresomptiondeprescriptionArcheologique_4',
+            pane: 'pane_ZonesdepresomptiondeprescriptionArcheologique_4',
+            onEachFeature: pop_ZonesdepresomptiondeprescriptionArcheologique_4,
+            style: style_ZonesdepresomptiondeprescriptionArcheologique_4_0
+        });
+        bounds_group.addLayer(layer_ZonesdepresomptiondeprescriptionArcheologique_4);
+        map.addLayer(layer_ZonesdepresomptiondeprescriptionArcheologique_4);
+
+        /* ============================================================
+           COUCHE 5 – PATRIMOINE LINÉAIRE
+        ============================================================ */
+
+        function pop_Patrimoinelineaire_5(feature, layer) {
+            layer.on({
+                mouseout: function () {
+                    if (typeof layer.closePopup === 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function (f) { f.closePopup(); });
+                    }
+                },
+                mouseover: highlightFeature
+            });
+            var p = feature.properties;
+            var popupContent = '<table>' +
+                '<tr>' + propCell(p['military'],  'Military') + '</tr>' +
+                '<tr>' + propCell(p['barrier'],   'Barrier', 'visible-with-data', 'barrier') + '</tr>' +
+                '</table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function (e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        function style_Patrimoinelineaire_5_0() {
+            return {
+                pane: 'pane_Patrimoinelineaire_5',
+                opacity: 1,
+                color: 'rgba(0,0,0,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 4.0,
+                fillOpacity: 0,
+                interactive: true
+            };
+        }
+
+        function style_Patrimoinelineaire_5_1() {
+            return {
+                pane: 'pane_Patrimoinelineaire_5',
+                opacity: 1,
+                color: 'rgba(227,26,28,1.0)',
+                dashArray: '',
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true
+            };
+        }
+
+        map.createPane('pane_Patrimoinelineaire_5');
+        map.getPane('pane_Patrimoinelineaire_5').style.zIndex = 405;
+        map.getPane('pane_Patrimoinelineaire_5').style['mix-blend-mode'] = 'normal';
+
+        var layer_Patrimoinelineaire_5 = new L.geoJson.multiStyle(json_Patrimoinelineaire_5, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Patrimoinelineaire_5',
+            layerName: 'layer_Patrimoinelineaire_5',
+            pane: 'pane_Patrimoinelineaire_5',
+            onEachFeature: pop_Patrimoinelineaire_5,
+            styles: [style_Patrimoinelineaire_5_0, style_Patrimoinelineaire_5_1]
+        });
+        bounds_group.addLayer(layer_Patrimoinelineaire_5);
+        map.addLayer(layer_Patrimoinelineaire_5);
+
+        /* ============================================================
+           COUCHE 6 – SITES HISTORIQUES
+        ============================================================ */
+
+        function pop_Siteshistoriques_6(feature, layer) {
+            layer.off('mouseover');
+            layer.off('mouseout');
+            var p = feature.properties;
+            var photoHtml = (p['Photo'] !== null && p['Photo'] !== undefined)
+                ? '<img src="images/' + String(p['Photo']).replace(/[\\/:]/g, '_').trim().replace(/'/g, "\u2019").replace(/"/g, '&quot;') + '">'
+                : '';
+            var popupContent = '<table>' +
+                '<tr>' + propCell(p['historic'],  'Historic') + '</tr>' +
+                '<tr>' + propCell(p['ref:DRAC'],  'Réf. DRAC') + '</tr>' +
+                '<tr>' + propCell(p['name'],      'Nom') + '</tr>' +
+                '<tr><td colspan="2"><strong>Photo</strong><br />' + photoHtml + '</td></tr>' +
+                '</table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function (e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        /* Styles par type de site historique */
+        var ICON_SIZE = [15.2, 15.2];
+        var DEFAULT_ROTATION = 0.5934122;
+
+        function makeIconStyle(pane, iconUrl, rotation) {
+            return {
+                pane: pane,
+                rotationAngle: (rotation !== undefined) ? rotation : DEFAULT_ROTATION,
+                rotationOrigin: 'center center',
+                icon: L.icon({ iconUrl: iconUrl, iconSize: ICON_SIZE }),
+                interactive: true
+            };
+        }
+
+        var SITE_STYLES = {
+            'Bunker':                   function (pane) { return makeIconStyle(pane, 'markers/bunker.svg'); },
+            'Calvaire':                 function (pane) { return makeIconStyle(pane, 'markers/christian.svg'); },
+            'Fontaine':                 function (pane) { return makeIconStyle(pane, 'markers/fountain.svg'); },
+            'Lavoir':                   function (pane) {
+                return {
+                    pane: pane, shape: 'triangle', radius: 8.0,
+                    opacity: 1, color: 'rgba(255,0,0,1.0)', dashArray: '',
+                    lineCap: 'butt', lineJoin: 'miter', weight: 1.0,
+                    fill: true, fillOpacity: 1, fillColor: 'rgba(31,120,180,1.0)',
+                    interactive: true
+                };
+            },
+            'Manoir':                   function (pane) { return makeIconStyle(pane, 'markers/manor.svg'); },
+            'Memorial':                 function (pane) { return makeIconStyle(pane, 'markers/memorial.svg'); },
+            'Ruines':                   function (pane) { return makeIconStyle(pane, 'markers/tower_defensive.svg'); },
+            'Sanctuaire de bord de route': function (pane) { return makeIconStyle(pane, 'markers/christian_1.svg'); },
+            'Chapelle':                 function (pane) { return makeIconStyle(pane, 'markers/bell_tower.svg'); },
+            'Site archaeologique':      function (pane) { return makeIconStyle(pane, 'markers/archaeological_site.svg', 0.5585056); },
+            'Maison':                   function (pane) { return makeIconStyle(pane, 'markers/house.svg'); },
+            'Moulin':                   function (pane) { return makeIconStyle(pane, 'markers/windmill.svg'); },
+            'Monument Lindeberg':       function (pane) { return makeIconStyle(pane, 'markers/museum.svg'); },
+            'Puit':                     function (pane) { return makeIconStyle(pane, 'markers/fountain.svg', 0.0); },
+            'Pêcherie':                 function (pane) { return makeIconStyle(pane, 'markers/fish.svg'); }
+        };
+
+        function style_Siteshistoriques_6_0(feature) {
+            var type = String(feature.properties['historic']);
+            var pane = 'pane_Siteshistoriques_6';
+            if (SITE_STYLES[type]) {
+                return SITE_STYLES[type](pane);
+            }
+            /* Fallback : marqueur cercle gris si type inconnu */
+            return {
+                pane: pane,
+                radius: 6,
+                opacity: 1,
+                color: 'rgba(80,80,80,1.0)',
+                weight: 1,
+                fill: true,
+                fillOpacity: 0.8,
+                fillColor: 'rgba(180,180,180,1.0)',
+                interactive: true
+            };
+        }
+
+        map.createPane('pane_Siteshistoriques_6');
+        map.getPane('pane_Siteshistoriques_6').style.zIndex = 406;
+        map.getPane('pane_Siteshistoriques_6').style['mix-blend-mode'] = 'normal';
+
+        var layer_Siteshistoriques_6 = new L.geoJson(json_Siteshistoriques_6, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Siteshistoriques_6',
+            layerName: 'layer_Siteshistoriques_6',
+            pane: 'pane_Siteshistoriques_6',
+            onEachFeature: pop_Siteshistoriques_6,
+            pointToLayer: function (feature, latlng) {
+                var style = style_Siteshistoriques_6_0(feature);
+                /* Si le style contient 'shape' → shapeMarker, sinon marker classique */
+                if (style && style.shape) {
+                    return L.shapeMarker(latlng, style);
+                }
+                /* Si le style contient 'icon' → marker avec icône SVG */
+                if (style && style.icon) {
+                    return L.marker(latlng, style);
+                }
+                /* Fallback : circleMarker */
+                return L.circleMarker(latlng, style);
+            }
+        });
+        bounds_group.addLayer(layer_Siteshistoriques_6);
+        map.addLayer(layer_Siteshistoriques_6);
+
+        /* ============================================================
+           COUCHE 7 – VOIES DE DÉPLACEMENT
+        ============================================================ */
+
+        function pop_Voiesdedplacement_7(feature, layer) {
+            layer.on({
+                mouseout: function () {
+                    if (typeof layer.closePopup === 'function') {
+                        layer.closePopup();
+                    } else {
+                        layer.eachLayer(function (f) { f.closePopup(); });
+                    }
+                },
+                mouseover: highlightFeature
+            });
+            var p = feature.properties;
+            var popupContent = '<table>' +
+                '<tr>' + propCell(p['Nom'],      'Nom') + '</tr>' +
+                '<tr>' + propCell(p['distance'], 'Distance') + '</tr>' +
+                '</table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function (e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        /* Table des styles de voies */
+        var VOIE_STYLES = {
+            'Circuit 1':                              { color: 'rgba(31,120,180,1.0)',   dashArray: '3.0,6.0' },
+            'Circuit 2':                              { color: 'rgba(227,26,28,1.0)',    dashArray: '3.0,6.0' },
+            'Circuit Penvenan Est':                   { color: 'rgba(69,202,160,1.0)',   dashArray: '3.0,6.0' },
+            'Circuit Penvenan Ouest':                 { color: 'rgba(31,211,34,1.0)',    dashArray: '3.0,6.0' },
+            'Voie verte':                             { color: 'rgba(51,160,44,1.0)',    dashArray: '' },
+            'Liaison circuits 1 et 2':                { color: 'rgba(196,119,203,1.0)',  dashArray: '3.0,6.0' },
+            'Deviation Samedi matin':                 { color: 'rgba(253,191,111,1.0)',  dashArray: '' },
+            'Continuité Mobilité douce (vélo/piéton)': { color: 'rgba(128,17,25,1.0)', dashArray: '' }
+        };
+
+        function style_Voiesdedplacement_7_0(feature) {
+            var nom = String(feature.properties['Nom']);
+            var voie = VOIE_STYLES[nom];
+            if (!voie) {
+                /* Fallback : trait gris pointillé si nom inconnu */
+                voie = { color: 'rgba(100,100,100,1.0)', dashArray: '4,4' };
+            }
+            return {
+                pane: 'pane_Voiesdedplacement_7',
+                opacity: 1,
+                color: voie.color,
+                dashArray: voie.dashArray,
+                lineCap: 'round',
+                lineJoin: 'round',
+                weight: 3.0,
+                fillOpacity: 0,
+                interactive: true
+            };
+        }
+
+        map.createPane('pane_Voiesdedplacement_7');
+        map.getPane('pane_Voiesdedplacement_7').style.zIndex = 407;
+        map.getPane('pane_Voiesdedplacement_7').style['mix-blend-mode'] = 'normal';
+
+        var layer_Voiesdedplacement_7 = new L.geoJson(json_Voiesdedplacement_7, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Voiesdedplacement_7',
+            layerName: 'layer_Voiesdedplacement_7',
+            pane: 'pane_Voiesdedplacement_7',
+            onEachFeature: pop_Voiesdedplacement_7,
+            style: style_Voiesdedplacement_7_0
+        });
+        bounds_group.addLayer(layer_Voiesdedplacement_7);
+        map.addLayer(layer_Voiesdedplacement_7);
+
+        /* ============================================================
+           COUCHE 8 – AXES DU PROGRAMME
+        ============================================================ */
+
+        function pop_Axesduprogramme_8(feature, layer) {
+            layer.off('mouseover');
+            layer.off('mouseout');
+            var p = feature.properties;
+            var photoAvant = (p['Photo_avant'] !== null && p['Photo_avant'] !== undefined)
+                ? '<img src="images/' + String(p['Photo_avant']).replace(/[\\/:]/g, '_').trim().replace(/'/g, "\u2019").replace(/"/g, '&quot;') + '">'
+                : '';
+            var photoApres = (p['Photo_apres'] !== null && p['Photo_apres'] !== undefined)
+                ? '<img src="images/' + String(p['Photo_apres']).replace(/[\\/:]/g, '_').trim().replace(/'/g, "\u2019").replace(/"/g, '&quot;') + '">'
+                : '';
+            var popupContent = '<table>' +
+                '<tr>' + propCell(p['Nom'],         'Nom') + '</tr>' +
+                '<tr>' + propCell(p['Description'], 'Description', 'visible-with-data', 'Description') + '</tr>' +
+                '<tr>' + propCell(p['Quartier'],    'Quartier',    'visible-with-data', 'Quartier') + '</tr>' +
+                '<tr>' + propCell(p['Statut'],      'Statut',      'visible-with-data', 'Statut') + '</tr>' +
+                '<tr>' + propCell(p['Date']) + '</tr>' +
+                '<tr>' + propCell(p['Categorie'],   'Catégorie') + '</tr>' +
+                '<tr>' + propCell(p['Surface'],     'Surface') + '</tr>' +
+                '<tr><th scope="row">Photo avant</th><td>' + photoAvant + '</td></tr>' +
+                '<tr><th scope="row">Photo après</th><td>' + photoApres + '</td></tr>' +
+                '<tr>' + propCell(p['Axe']) + '</tr>' +
+                '</table>';
+            var content = removeEmptyRowsFromPopupContent(popupContent, feature);
+            layer.on('popupopen', function (e) { addClassToPopupIfMedia(content, e.popup); });
+            layer.bindPopup(content, { maxHeight: 400 });
+        }
+
+        /* Table des styles des axes */
+        var AXE_STYLES = {
+            'Attractivite & accompagnement des acteurs': 'rgba(196,119,203,1.0)',
+            'Cadre de vie':                              'rgba(31,120,180,1.0)',
+            'Lien social & Solidarite':                  'rgba(139,235,107,1.0)',
+            'Repondre aux enjeux de long terme':         'rgba(236,97,132,1.0)',
+            'Voies de circulation & deplacements':       'rgba(216,189,99,1.0)'
+        };
+
+        function style_Axesduprogramme_8_0(feature) {
+            var axe = String(feature.properties['Axe']);
+            var fillColor = AXE_STYLES[axe] || 'rgba(150,150,150,1.0)'; /* Fallback gris */
+            return {
+                pane: 'pane_Axesduprogramme_8',
+                shape: 'triangle',
+                radius: 6.0,
+                opacity: 1,
+                color: 'rgba(35,35,35,1.0)',
+                dashArray: '',
+                lineCap: 'butt',
+                lineJoin: 'miter',
+                weight: 1,
+                fill: true,
+                fillOpacity: 1,
+                fillColor: fillColor,
+                interactive: true
+            };
+        }
+
+        map.createPane('pane_Axesduprogramme_8');
+        map.getPane('pane_Axesduprogramme_8').style.zIndex = 408;
+        map.getPane('pane_Axesduprogramme_8').style['mix-blend-mode'] = 'normal';
+
+        var layer_Axesduprogramme_8 = new L.geoJson(json_Axesduprogramme_8, {
+            attribution: '',
+            interactive: true,
+            dataVar: 'json_Axesduprogramme_8',
+            layerName: 'layer_Axesduprogramme_8',
+            pane: 'pane_Axesduprogramme_8',
+            onEachFeature: pop_Axesduprogramme_8,
+            pointToLayer: function (feature, latlng) {
+                var style = style_Axesduprogramme_8_0(feature);
+                /* Sécurité : style garanti non-null grâce au fallback dans la fonction */
+                return L.shapeMarker(latlng, style);
+            }
+        });
+        bounds_group.addLayer(layer_Axesduprogramme_8);
+        map.addLayer(layer_Axesduprogramme_8);
+
+        /* ============================================================
+           RECHERCHE D'ADRESSE (API BAN France)
+        ============================================================ */
+
+        var photonGeoJSON = null; /* ancien: x */
+        var photonMarker  = null; /* ancien: z (marker), obj3.marker */
+
+        var photonControl = L.control.photon({
+            url: 'https://api-adresse.data.gouv.fr/search/?',
+            feedbackLabel: '',
+            position: 'topleft',
+            includePosition: true,
+            initial: true
+        }).addTo(map);
+        photonControl._container.childNodes[0].style.borderRadius = '10px';
+
+        photonControl.on('selected', function (e) {
+            /* Nettoyage de la recherche précédente */
+            if (photonGeoJSON !== null) {
+                map.removeLayer(photonMarker);
+                map.removeLayer(photonGeoJSON);
+            }
+            var choice = e.choice;
+            photonGeoJSON = L.geoJSON(choice).addTo(map);
+            var latlng = photonGeoJSON.getLayers()[0].getLatLng();
+            var label  = (typeof choice.properties.label !== 'undefined')
+                ? choice.properties.label
+                : choice.properties.display_name;
+            photonMarker = L.marker(latlng).bindPopup(label).addTo(map);
+            map.setView(latlng, 17);
+            e.target.input.value = label;
+        });
+
+        var searchContainer = document.getElementsByClassName('leaflet-photon leaflet-control')[0];
+        searchContainer.classList.add('leaflet-control-search');
+        searchContainer.style.display = 'flex';
+        searchContainer.style.backgroundColor = 'rgba(255,255,255,0.5)';
+
+        var searchButton = document.createElement('div');
+        searchButton.id = 'gcd-button-control';
+        searchButton.className = 'gcd-gl-btn fa fa-search search-button';
+        searchContainer.insertBefore(searchButton, searchContainer.firstChild);
+
+        var searchPanel = searchContainer.lastChild;
+        searchPanel.style.display = 'none';
+        searchButton.addEventListener('click', function () {
+            searchPanel.style.display = (searchPanel.style.display === 'none') ? 'block' : 'none';
+        });
+
+        /* ============================================================
+           ARBRE DE COUCHES (LÉGENDE)
+        ============================================================ */
+
+        var overlaysTree = [
+            {
+                label: '<b>Programme</b>',
+                selectAllCheckbox: true,
+                children: [
+                    {
+                        label: 'Axes du programme<br />' +
+                            '<table>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Axesduprogramme_8_Attractiviteaccompagnementdesacteurs0.png" /></td><td>Attractivite &amp; accompagnement des acteurs</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Axesduprogramme_8_Cadredevie1.png" /></td><td>Cadre de vie</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Axesduprogramme_8_LiensocialSolidarite2.png" /></td><td>Lien social &amp; Solidarité</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Axesduprogramme_8_Repondreauxenjeuxdelongterme3.png" /></td><td>Répondre aux enjeux de long terme</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Axesduprogramme_8_Voiesdecirculationdeplacements4.png" /></td><td>Voies de circulation &amp; déplacements</td></tr>' +
+                            '</table>',
+                        layer: layer_Axesduprogramme_8
+                    },
+                    {
+                        label: 'Voies de déplacement<br />' +
+                            '<table>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Voiesdedplacement_7_Circuit10.png" /></td><td>Circuit 1</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Voiesdedplacement_7_Circuit21.png" /></td><td>Circuit 2</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Voiesdedplacement_7_CircuitPenvenanEst2.png" /></td><td>Circuit Penvénan Est</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Voiesdedplacement_7_CircuitPenvenanOuest3.png" /></td><td>Circuit Penvénan Ouest</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Voiesdedplacement_7_Voieverte4.png" /></td><td>Voie verte</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Voiesdedplacement_7_Liaisoncircuits1et25.png" /></td><td>Liaison circuits 1 et 2</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Voiesdedplacement_7_DeviationSamedimatin6.png" /></td><td>Déviation Samedi matin</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Voiesdedplacement_7_Voiedouce7.png" /></td><td>Continuité Mobilité douce (vélo/piéton)</td></tr>' +
+                            '</table>',
+                        layer: layer_Voiesdedplacement_7
+                    }
+                ]
+            },
+            {
+                label: '<b>Patrimoine</b>',
+                selectAllCheckbox: true,
+                children: [
+                    {
+                        label: 'Sites historiques<br />' +
+                            '<table>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Bunker0.png" /></td><td>Bunker</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Calvaire1.png" /></td><td>Calvaire</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Fontaine2.png" /></td><td>Fontaine</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Lavoir3.png" /></td><td>Lavoir</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Manoir4.png" /></td><td>Manoir</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Memorial5.png" /></td><td>Memorial</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Ruines6.png" /></td><td>Ruines</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Sanctuairedebordderoute7.png" /></td><td>Sanctuaire de bord de route</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Chapelle8.png" /></td><td>Chapelle</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Sitearchaeologique9.png" /></td><td>Site archéologique</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Maison10.png" /></td><td>Maison</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Moulin11.png" /></td><td>Moulin</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_MonumentLindeberg12.png" /></td><td>Monument Lindeberg</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Puit13.png" /></td><td>Puit</td></tr>' +
+                            '<tr><td style="text-align:center;"><img src="legend/Siteshistoriques_6_Pecherie14.png" /></td><td>Pêcherie</td></tr>' +
+                            '</table>',
+                        layer: layer_Siteshistoriques_6
+                    },
+                    { label: '<img src="legend/Patrimoinelineaire_5.png" /> Patrimoine linéaire', layer: layer_Patrimoinelineaire_5 },
+                    { label: '<img src="legend/ZonesdepresomptiondeprescriptionArcheologique_4.png" /> Zones de présomption de prescription Archéologique', layer: layer_ZonesdepresomptiondeprescriptionArcheologique_4 },
+                    { label: '<img src="legend/LabelMonumentshistorique_3.png" /> Label Monuments historiques', layer: layer_LabelMonumentshistorique_3 }
+                ]
+            },
+            {
+                label: '<b>Habitats Naturels</b>',
+                collapsed: true,
+                selectAllCheckbox: true,
+                children: [
+                    { label: '<img src="legend/zonesncessitantlavisdugestionnaireN2000_2.png" /> Zones nécessitant l\'avis du gestionnaire N2000', layer: layer_zonesncessitantlavisdugestionnaireN2000_2 }
+                ]
+            },
+            {
+                label: '<b>Administratif</b>',
+                collapsed: true,
+                selectAllCheckbox: true,
+                children: [
+                    { label: '<img src="legend/Limitescommunale_1.png" /> Limites communales', layer: layer_Limitescommunale_1 }
+                ]
+            },
+            {
+                label: '<b>Fond de carte</b>',
+                collapsed: true,
+                selectAllCheckbox: true,
+                children: [
+                    { label: 'OpenStreetMap', layer: layer_OpenStreetMap_0, radioGroup: 'bm' }
+                ]
+            }
+        ];
+
+        var layerControl = L.control.layers.tree(null, overlaysTree, { collapsed: false });
+        layerControl.addTo(map);
+
+        /* ============================================================
+           GESTION DE LA HAUTEUR DE LA LISTE DES COUCHES
+        ============================================================ */
+
+        (function () {
+            function adjustLayersListHeight() {
+                var scrollEl = document.querySelector('.leaflet-control-layers-scrollbar');
+                if (scrollEl) {
+                    var listEl = document.querySelector('.leaflet-control-layers-list');
+                    var currentHeight = parseFloat(listEl.style.height || window.getComputedStyle(listEl).height);
+                    listEl.style.height = (currentHeight - 50) + 'px';
+                }
+            }
+
+            var isExpanded = true;
+            var controlEl  = document.querySelector('.leaflet-control-layers');
+            var toggleBtn  = document.querySelector('.leaflet-control-layers-toggle');
+
+            toggleBtn.addEventListener('click', function () {
+                if (isExpanded) {
+                    controlEl.classList.remove('leaflet-control-layers-expanded');
+                } else {
+                    controlEl.classList.add('leaflet-control-layers-expanded');
+                }
+                isExpanded = !isExpanded;
+                adjustLayersListHeight();
+            });
+
+            if (controlEl) {
+                controlEl.addEventListener('click', function (event) {
+                    if (event.target.closest('.leaflet-layerstree-header-pointer span')) {
+                        adjustLayersListHeight();
+                    }
+                });
+            }
+
+            /* Double clic simulé pour forcer l'initialisation correcte du contrôle */
+            setTimeout(function () { toggleBtn.click(); }, 10);
+            setTimeout(function () { toggleBtn.click(); }, 20);
+
+            /* Sur petit écran : replier le panneau automatiquement */
+            if (window.innerWidth < 650) {
+                setTimeout(function () {
+                    controlEl.classList.remove('leaflet-control-layers-expanded');
+                    isExpanded = false;
+                }, 500);
+            }
+        })();
+
+        /* ============================================================
+           LABELS & FIT BOUNDS
+        ============================================================ */
+
+        setBounds();
+
+        var labelIndex = 0;
+        layer_Axesduprogramme_8.eachLayer(function (layer) {
+            var nomVal = layer.feature.properties['Nom'];
+            var tooltipHtml = (nomVal !== null && nomVal !== undefined)
+                ? '<div style="color:#323232;font-size:8pt;font-weight:bold;font-family:\'Open Sans\',sans-serif;">' + String(nomVal) + '</div>'
+                : '';
+            layer.bindTooltip(tooltipHtml, {
+                permanent: true,
+                offset: [0, -16],
+                className: 'css_Axesduprogramme_8'
+            });
+            labels.push(layer);
+            totalMarkers += 1;
+            layer.added = true;
+            addLabel(layer, labelIndex);
+            labelIndex++;
+        });
+
+        resetLabels([layer_Axesduprogramme_8]);
+
+        map.on('zoomend',    function () { resetLabels([layer_Axesduprogramme_8]); });
+        map.on('layeradd',   function () { resetLabels([layer_Axesduprogramme_8]); });
+        map.on('layerremove',function () { resetLabels([layer_Axesduprogramme_8]); });
+
+        </script>
+    </body>
+</html>
